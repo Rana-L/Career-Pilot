@@ -1,4 +1,4 @@
-namespace CareerPilot.Api.Models;
+namespace CareerPilot.Api.models;
 
 public class CvAnalysis
 
@@ -12,7 +12,7 @@ public class CvAnalysis
 
     public int MatchScore { get; set; }
     public string? MissingSkills { get; set; }
-    public Datetime CreatedAt { get; set; } = dateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
 
 }
