@@ -1,0 +1,1 @@
+namespace CareerPilot.Api.Models;
