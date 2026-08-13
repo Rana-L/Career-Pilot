@@ -10,7 +10,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<User> Users { get; set; } = null!;
-    public DbSet<JobApplications> JobApplications { get; set; } = null!;
+    public DbSet<JobApplication> JobApplications { get; set; } = null!;
     public DbSet<Cv> Cvs { get; set; } = null!;
     public DbSet<CvAnalysis> CvAnalyses { get; set; } = null!;
 }
