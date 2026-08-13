@@ -1,4 +1,4 @@
-namespace CareerPilot.Api.Models;
+namespace CareerPilot.Api.models;
 
 public class JobApplication
 
@@ -9,7 +9,7 @@ public class JobApplication
 
     public string CompanyName { get; set; } = string.Empty;
     public string JobTitle { get; set; } = string.Empty;
-    public string? JibDescription { get; set; }
+    public string? JobDescription { get; set; }
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Wishlist;
     public string? Notes { get; set; }
 

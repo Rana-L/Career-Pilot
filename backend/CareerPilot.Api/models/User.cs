@@ -1,4 +1,4 @@
-namespace CareerPilot.Api.Models;
+namespace CareerPilot.Api.models;
 
 public class User
 {

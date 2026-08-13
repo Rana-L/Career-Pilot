@@ -1,4 +1,4 @@
-namespace CareerPilot.Api.Models;
+namespace CareerPilot.Api.models;
 
 public class Cv
 
@@ -9,8 +9,8 @@ public class Cv
 
     public string FileName { get; set; } = string.Empty;
     public string S3Url { get; set; } = string.Empty;
-    public DateTime UploadAt { get; set; } = DateTime.UtcvNow;
+    public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<CvAnalysis> CvAnlyses { get; set; } = new List<CvAnalysis>();
+    public ICollection<CvAnalysis> CvAnalyses { get; set; } = new List<CvAnalysis>();
 
 }

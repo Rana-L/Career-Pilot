@@ -1,6 +1,6 @@
-namespace CareerPilot.Api.Models;
+namespace CareerPilot.Api.models;
 
-public enum ApplicationsStatus
+public enum ApplicationStatus
 {
     Wishlist,
     Applied,
