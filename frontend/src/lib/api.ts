@@ -40,3 +40,27 @@ export async function loginUser(
 
   return res.json();
 }
+
+export interface DashboardSummary {
+  wishlist: number;
+  applied: number;
+  assessment: number;
+  interview: number;
+  offer: number;
+  rejected: number;
+  total: number;
+}
+
+export async function getDashboardSummary(
+  token: string,
+): Promise<DashboardSummary> {
+  const res = await fetch(`${API_URL}/api/dashboard/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to load dashboard summary");
+  }
+
+  return res.json();
+}
