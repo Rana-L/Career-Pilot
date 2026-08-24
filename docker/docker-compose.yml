@@ -4,7 +4,7 @@ services:
     container_name: careerpilot-postgres
     environment:
       POSTGRES_USER: careerpilot
-      POSTGRES_PASSWORD: careerpilot_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: careerpilot
     ports:
       - "5432:5432"
