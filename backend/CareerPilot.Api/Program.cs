@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Amazon.S3;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,17 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<TokenService>();
+
+builder.Services.AddSingleton<IAmazonS3>(sp =>
+{
+    var config = builder.Configuration;
+    var awsCredentials = new Amazon.Runtime.BasicAWSCredentials(
+        config["Aws:AccessKeyId"],
+        config["Aws:SecretAccessKey"]);
+    var region = Amazon.RegionEndpoint.GetBySystemName(config["Aws:Region"]);
+    return new AmazonS3Client(awsCredentials, region);
+});
+
 
 builder.Services.AddCors(options =>
 {
