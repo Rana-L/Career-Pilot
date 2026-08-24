@@ -436,3 +436,6 @@ node_modules/
 
 # macOS
 .DS_Store
+
+# Backend secrets 
+backend/CareerPilot.Api/appsettings.Development.json
