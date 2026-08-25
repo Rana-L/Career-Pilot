@@ -104,4 +104,23 @@ public class CvController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpGet("{id}/download")]
+    public async Task<IActionResult> GetDownloadUrl(int id)
+    {
+        var userId = GetUserId();
+        var cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
+        if (cv == null) return NotFound();
+        
+        var bucketName = _configuration["Aws:BucketName"];
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = bucketName,
+            Key = cv.S3Url,
+            Expires = DateTime.UtcNow.AddMinutes(5)
+        };
+        
+        var url = _s3Client.GetPreSignedURL(request);
+        return Ok(new { url });
+    }
 }
