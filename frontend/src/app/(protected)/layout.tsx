@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import Navbar from "@/components/Navbar";
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const { token, isLoading } = useAuth();
@@ -22,5 +23,10 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex flex-1 flex-col">
+      <Navbar />
+      <div className="mx-auto w-full max-w-5xl flex-1">{children}</div>
+    </div>
+  );
 }
