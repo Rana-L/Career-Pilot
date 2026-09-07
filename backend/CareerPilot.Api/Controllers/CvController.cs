@@ -41,11 +41,22 @@ public class CvController : ControllerBase
         return int.Parse(sub!);
     }
 
+    private static readonly string[] AllowedCvExtensions = [".pdf", ".docx", ".txt"];
+    private const long MaxCvFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+    private static readonly TimeSpan AnalyzeCooldown = TimeSpan.FromSeconds(60);
+
     [HttpPost("upload")]
     public async Task<ActionResult<CvResponse>> Upload(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest("No file uploaded.");
+
+        if (file.Length > MaxCvFileSizeBytes)
+            return BadRequest("File is too large. Maximum size is 5 MB.");
+
+        var extension = Path.GetExtension(file.FileName);
+        if (!AllowedCvExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            return BadRequest("Unsupported file type. Please upload a PDF, DOCX, or TXT file.");
 
         var userId = GetUserId();
         var bucketName = _configuration["Aws:BucketName"];
@@ -145,6 +156,17 @@ public async Task<ActionResult<CvAnalysisResponse>> Analyze(int cvId, int jobApp
     var jobApplication = await _context.JobApplications
         .FirstOrDefaultAsync(j => j.Id == jobApplicationId && j.UserId == userId);
     if (jobApplication == null) return NotFound("Job application not found.");
+
+    var recentAnalysis = await _context.CvAnalyses
+        .Where(a => a.CvId == cvId && a.JobApplicationId == jobApplicationId)
+        .OrderByDescending(a => a.CreatedAt)
+        .FirstOrDefaultAsync();
+
+    if (recentAnalysis != null && DateTime.UtcNow - recentAnalysis.CreatedAt < AnalyzeCooldown)
+    {
+        var secondsLeft = (int)(AnalyzeCooldown - (DateTime.UtcNow - recentAnalysis.CreatedAt)).TotalSeconds;
+        return StatusCode(429, $"Please wait {secondsLeft} more second(s) before re-analyzing this CV against this job.");
+    }
 
     var bucketName = _configuration["Aws:BucketName"];
     var getRequest = new GetObjectRequest { BucketName = bucketName, Key = cv.S3Url };

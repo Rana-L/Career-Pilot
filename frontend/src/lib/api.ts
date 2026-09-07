@@ -172,7 +172,10 @@ export async function uploadCv(token: string, file: File): Promise<Cv> {
     body: formData,
   });
 
-  if (!res.ok) throw new Error("Failed to upload CV");
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to upload CV");
+  }
   return res.json();
 }
 
@@ -218,7 +221,10 @@ export async function analyzeCv(
       method: "POST",
     },
   );
-  if (!res.ok) throw new Error("Failed to analyze CV");
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to analyze CV");
+  }
   return res.json();
 }
 
