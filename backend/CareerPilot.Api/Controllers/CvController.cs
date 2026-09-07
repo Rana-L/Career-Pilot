@@ -6,6 +6,11 @@ using Amazon.S3.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenAI.Chat;
+using UglyToad.PdfPig;
+using System.Text;
+using System.Text.Json;
+
 
 namespace CareerPilot.Api.Controllers;
 
@@ -18,11 +23,14 @@ public class CvController : ControllerBase
     private readonly IAmazonS3 _s3Client;
     private readonly IConfiguration _configuration;
 
-    public CvController(AppDbContext context, IAmazonS3 s3Client, IConfiguration configuration)
+    private readonly ChatClient _chatClient;
+
+    public CvController(AppDbContext context, IAmazonS3 s3Client, IConfiguration configuration, ChatClient chatClient)
     {
         _context = context;
         _s3Client = s3Client;
         _configuration = configuration;
+        _chatClient = chatClient;
     }
 
     private int GetUserId()
@@ -123,4 +131,87 @@ public class CvController : ControllerBase
         var url = _s3Client.GetPreSignedURL(request);
         return Ok(new { url });
     }
+
+    [HttpPost("{cvId}/analyze/{jobApplicationId}")]
+public async Task<ActionResult<CvAnalysisResponse>> Analyze(int cvId, int jobApplicationId)
+{
+    var userId = GetUserId();
+
+    var cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Id == cvId && c.UserId == userId);
+    if (cv == null) return NotFound("CV not found.");
+
+    var jobApplication = await _context.JobApplications
+        .FirstOrDefaultAsync(j => j.Id == jobApplicationId && j.UserId == userId);
+    if (jobApplication == null) return NotFound("Job application not found.");
+
+    var bucketName = _configuration["Aws:BucketName"];
+    var getRequest = new GetObjectRequest { BucketName = bucketName, Key = cv.S3Url };
+    using var response = await _s3Client.GetObjectAsync(getRequest);
+    using var memoryStream = new MemoryStream();
+    await response.ResponseStream.CopyToAsync(memoryStream);
+    var fileBytes = memoryStream.ToArray();
+
+    string cvText;
+    if (cv.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+    {
+        using var pdf = PdfDocument.Open(fileBytes);
+        var textBuilder = new StringBuilder();
+        foreach (var page in pdf.GetPages())
+        {
+            textBuilder.AppendLine(page.Text);
+        }
+        cvText = textBuilder.ToString();
+    }
+    else
+    {
+        cvText = Encoding.UTF8.GetString(fileBytes);
+    }
+
+   var prompt = $@"Compare this CV against the job description below. Respond ONLY with a JSON object
+   in this exact shape: {{""matchScore"": <integer 0-100>, ""missingSkills"": ""<comma-separated list of missing skills>""}}
+   
+   CV:
+   {cvText}
+   
+   Job Description:
+   {jobApplication.JobDescription}";
+
+
+    var chatResponse = await _chatClient.CompleteChatAsync(
+        [new UserChatMessage(prompt)],
+        new ChatCompletionOptions { ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat() });
+
+    var resultJson = chatResponse.Value.Content[0].Text;
+    var parsed = JsonSerializer.Deserialize<AnalysisResult>(resultJson,
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+    var analysis = new CvAnalysis
+    {
+        CvId = cv.Id,
+        JobApplicationId = jobApplication.Id,
+        MatchScore = parsed.MatchScore,
+        MissingSkills = parsed.MissingSkills,
+        CreatedAt = DateTime.UtcNow
+    };
+
+    _context.CvAnalyses.Add(analysis);
+    await _context.SaveChangesAsync();
+
+    return Ok(new CvAnalysisResponse
+    {
+        Id = analysis.Id,
+        CvId = analysis.CvId,
+        JobApplicationId = analysis.JobApplicationId,
+        MatchScore = analysis.MatchScore,
+        MissingSkills = analysis.MissingSkills,
+        CreatedAt = analysis.CreatedAt
+    });
+}
+
+private class AnalysisResult
+{
+    public int MatchScore { get; set; }
+    public string MissingSkills { get; set; } = string.Empty;
+}
+
 }

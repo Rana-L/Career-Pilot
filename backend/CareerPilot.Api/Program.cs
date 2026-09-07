@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Amazon.S3;
+using OpenAI.Chat;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +51,13 @@ builder.Services.AddSingleton<IAmazonS3>(sp =>
     var region = Amazon.RegionEndpoint.GetBySystemName(config["Aws:Region"]);
     return new AmazonS3Client(awsCredentials, region);
 });
+
+builder.Services.AddSingleton(sp =>
+{
+    var apiKey = builder.Configuration["OpenAI:ApiKey"];
+    return new ChatClient("gpt-4o-mini", apiKey);
+});
+
 
 
 builder.Services.AddCors(options =>
