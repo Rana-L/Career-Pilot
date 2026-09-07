@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenAI.Chat;
 using UglyToad.PdfPig;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text;
 using System.Text.Json;
 
@@ -159,6 +161,21 @@ public async Task<ActionResult<CvAnalysisResponse>> Analyze(int cvId, int jobApp
         foreach (var page in pdf.GetPages())
         {
             textBuilder.AppendLine(page.Text);
+        }
+        cvText = textBuilder.ToString();
+    }
+    else if (cv.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+    {
+        using var docStream = new MemoryStream(fileBytes);
+        using var wordDoc = WordprocessingDocument.Open(docStream, false);
+        var body = wordDoc.MainDocumentPart?.Document?.Body;
+        var textBuilder = new StringBuilder();
+        if (body != null)
+        {
+            foreach (var paragraph in body.Descendants<Paragraph>())
+            {
+                textBuilder.AppendLine(paragraph.InnerText);
+            }
         }
         cvText = textBuilder.ToString();
     }
