@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { getDashboardSummary, type DashboardSummary } from "@/lib/api";
 
@@ -31,6 +32,18 @@ export default function DashboardPage() {
         >
           Log out
         </button>
+      </div>
+
+      <div className="flex gap-4">
+        <Link
+          href="/applications"
+          className="text-sm text-black dark:text-zinc-50"
+        >
+          Applications
+        </Link>
+        <Link href="/cv" className="text-sm text-black dark:text-zinc-50">
+          CVs
+        </Link>
       </div>
 
       {error && <p className="text-red-600 dark:text-red-400">{error}</p>}

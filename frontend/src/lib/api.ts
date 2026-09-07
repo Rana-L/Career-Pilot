@@ -146,3 +146,69 @@ export async function deleteApplication(
   });
   if (!res.ok) throw new Error("Failed to delete application");
 }
+
+export interface Cv {
+  id: number;
+  fileName: string;
+  uploadedAt: string;
+}
+
+export async function uploadCv(token: string, file: File): Promise<Cv> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/cv/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error("Failed to upload CV");
+  return res.json();
+}
+
+export async function getCvs(token: string): Promise<Cv[]> {
+  const res = await authFetch("/api/cv", token);
+  if (!res.ok) throw new Error("Failed to load CVs");
+  return res.json();
+}
+
+export async function deleteCv(token: string, id: number): Promise<void> {
+  const res = await authFetch(`/api/cv/${id}`, token, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete CV");
+}
+
+export async function getCvDownloadUrl(
+  token: string,
+  id: number,
+): Promise<string> {
+  const res = await authFetch(`/api/cv/${id}/download`, token);
+  if (!res.ok) throw new Error("Failed to get download link");
+  const data = await res.json();
+  return data.url;
+}
+
+export interface CvAnalysisResult {
+  id: number;
+  cvId: number;
+  jobApplicationId: number;
+  matchScore: number;
+  missingSkills: string | null;
+  createdAt: string;
+}
+
+export async function analyzeCv(
+  token: string,
+  cvId: number,
+  jobApplicationId: number,
+): Promise<CvAnalysisResult> {
+  const res = await authFetch(
+    `/api/cv/${cvId}/analyze/${jobApplicationId}`,
+    token,
+    {
+      method: "POST",
+    },
+  );
+  if (!res.ok) throw new Error("Failed to analyze CV");
+  return res.json();
+}
