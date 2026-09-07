@@ -113,6 +113,15 @@ export async function getApplications(
   return res.json();
 }
 
+export async function getApplication(
+  token: string,
+  id: number,
+): Promise<JobApplication> {
+  const res = await authFetch(`/api/applications/${id}`, token);
+  if (!res.ok) throw new Error("Failed to load application");
+  return res.json();
+}
+
 export async function createApplication(
   token: string,
   input: CreateApplicationInput,
@@ -210,5 +219,14 @@ export async function analyzeCv(
     },
   );
   if (!res.ok) throw new Error("Failed to analyze CV");
+  return res.json();
+}
+
+export async function getCvAnalyses(
+  token: string,
+  cvId: number,
+): Promise<CvAnalysisResult[]> {
+  const res = await authFetch(`/api/cv/${cvId}/analyses`, token);
+  if (!res.ok) throw new Error("Failed to load analysis history");
   return res.json();
 }

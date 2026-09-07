@@ -139,6 +139,13 @@ export default function ApplicationsPage() {
                   ))}
                 </select>
 
+                <Link
+                  href={`/applications/${app.id}/edit`}
+                  className="text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+                >
+                  Edit
+                </Link>
+
                 <button
                   onClick={() => handleDelete(app.id)}
                   className="text-sm font-medium text-red-600 transition-colors hover:text-red-500 dark:text-red-400"

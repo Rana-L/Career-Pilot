@@ -208,6 +208,30 @@ public async Task<ActionResult<CvAnalysisResponse>> Analyze(int cvId, int jobApp
     });
 }
 
+[HttpGet("{cvId}/analyses")]
+public async Task<ActionResult<List<CvAnalysisResponse>>> GetAnalyses(int cvId)
+{
+    var userId = GetUserId();
+    var cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Id == cvId && c.UserId == userId);
+    if (cv == null) return NotFound();
+
+    var analyses = await _context.CvAnalyses
+        .Where(a => a.CvId == cvId)
+        .OrderByDescending(a => a.CreatedAt)
+        .Select(a => new CvAnalysisResponse
+        {
+            Id = a.Id,
+            CvId = a.CvId,
+            JobApplicationId = a.JobApplicationId,
+            MatchScore = a.MatchScore,
+            MissingSkills = a.MissingSkills,
+            CreatedAt = a.CreatedAt
+        })
+        .ToListAsync();
+
+    return Ok(analyses);
+}
+
 private class AnalysisResult
 {
     public int MatchScore { get; set; }

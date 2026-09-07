@@ -8,6 +8,7 @@ import {
   deleteCv,
   getCvDownloadUrl,
   analyzeCv,
+  getCvAnalyses,
   getApplications,
   type Cv,
   type JobApplication,
@@ -26,18 +27,32 @@ export default function CvPage() {
 
   const [selectedJobByCv, setSelectedJobByCv] = useState<Record<number, number>>({});
   const [analyzingCvId, setAnalyzingCvId] = useState<number | null>(null);
-  const [results, setResults] = useState<Record<number, CvAnalysisResult>>({});
+  const [historyByCv, setHistoryByCv] = useState<Record<number, CvAnalysisResult[]>>({});
 
   useEffect(() => {
     if (!token) return;
     Promise.all([getCvs(token), getApplications(token)])
-      .then(([cvsData, applicationsData]) => {
+      .then(async ([cvsData, applicationsData]) => {
         setCvs(cvsData);
         setApplications(applicationsData);
+
+        const histories = await Promise.all(
+          cvsData.map((cv) => getCvAnalyses(token, cv.id)),
+        );
+        const historyMap: Record<number, CvAnalysisResult[]> = {};
+        cvsData.forEach((cv, index) => {
+          historyMap[cv.id] = histories[index];
+        });
+        setHistoryByCv(historyMap);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
       .finally(() => setIsLoading(false));
   }, [token]);
+
+  function jobLabel(jobApplicationId: number): string {
+    const app = applications.find((a) => a.id === jobApplicationId);
+    return app ? `${app.jobTitle} — ${app.companyName}` : "Deleted job application";
+  }
 
   async function handleUpload() {
     if (!token || !selectedFile) return;
@@ -83,7 +98,10 @@ export default function CvPage() {
     setError(null);
     try {
       const result = await analyzeCv(token, cvId, jobApplicationId);
-      setResults((prev) => ({ ...prev, [cvId]: result }));
+      setHistoryByCv((prev) => ({
+        ...prev,
+        [cvId]: [result, ...(prev[cvId] ?? [])],
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to analyse");
     } finally {
@@ -135,7 +153,7 @@ export default function CvPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {cvs.map((cv) => {
-            const result = results[cv.id];
+            const history = historyByCv[cv.id] ?? [];
             return (
               <div
                 key={cv.id}
@@ -193,30 +211,45 @@ export default function CvPage() {
                   </div>
                 )}
 
-                {result && (
-                  <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-950">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        Match score
-                      </p>
-                      <p className={`text-lg font-semibold ${scoreColor(result.matchScore)}`}>
-                        {result.matchScore}%
-                      </p>
-                    </div>
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                {history.length > 0 && (
+                  <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Analysis history
+                    </p>
+                    {history.map((entry) => (
                       <div
-                        className={`h-full rounded-full ${scoreBarColor(result.matchScore)}`}
-                        style={{ width: `${Math.min(100, Math.max(0, result.matchScore))}%` }}
-                      />
-                    </div>
-                    {result.missingSkills && (
-                      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                          Missing:
-                        </span>{" "}
-                        {result.missingSkills}
-                      </p>
-                    )}
+                        key={entry.id}
+                        className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-950"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                              {jobLabel(entry.jobApplicationId)}
+                            </p>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                              {new Date(entry.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <p className={`text-lg font-semibold ${scoreColor(entry.matchScore)}`}>
+                            {entry.matchScore}%
+                          </p>
+                        </div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+                          <div
+                            className={`h-full rounded-full ${scoreBarColor(entry.matchScore)}`}
+                            style={{ width: `${Math.min(100, Math.max(0, entry.matchScore))}%` }}
+                          />
+                        </div>
+                        {entry.missingSkills && (
+                          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                              Missing:
+                            </span>{" "}
+                            {entry.missingSkills}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
