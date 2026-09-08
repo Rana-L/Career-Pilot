@@ -31,3 +31,7 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
         working-directory: backend/CareerPilot.Api
+
+      - name: Run tests
+        run: dotnet test --configuration Release
+        working-directory: backend/CareerPilot.Api.Tests
