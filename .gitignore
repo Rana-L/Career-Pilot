@@ -440,3 +440,5 @@ node_modules/
 # Backend secrets 
 backend/CareerPilot.Api/appsettings.Development.json
 .claude/
+
+.claude/
