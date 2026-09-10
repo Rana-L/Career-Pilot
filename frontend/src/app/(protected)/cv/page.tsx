@@ -41,9 +41,9 @@ export default function CvPage() {
     {},
   );
   const [coverLetterCvId, setCoverLetterCvId] = useState<number | null>(null);
-  const [coverLetterByCv, setCoverLetterByCv] = useState<Record<number, string>>(
-    {},
-  );
+  const [coverLetterByCv, setCoverLetterByCv] = useState<
+    Record<number, string>
+  >({});
 
   useEffect(() => {
     if (!token) return;
@@ -170,13 +170,18 @@ export default function CvPage() {
       const result = await generateCoverLetter(token, cvId, jobApplicationId);
       setCoverLetterByCv((prev) => ({ ...prev, [cvId]: result.coverLetter }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate cover letter");
+      setError(
+        err instanceof Error ? err.message : "Failed to generate cover letter",
+      );
     } finally {
       setCoverLetterCvId(null);
     }
   }
 
-  async function handleDownloadCoverLetter(cvId: number, format: "pdf" | "docx") {
+  async function handleDownloadCoverLetter(
+    cvId: number,
+    format: "pdf" | "docx",
+  ) {
     if (!token) return;
     const markdown = coverLetterByCv[cvId];
     if (!markdown) return;
@@ -326,13 +331,17 @@ export default function CvPage() {
                       </p>
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => handleDownloadCoverLetter(cv.id, "pdf")}
+                          onClick={() =>
+                            handleDownloadCoverLetter(cv.id, "pdf")
+                          }
                           className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                         >
                           Download PDF
                         </button>
                         <button
-                          onClick={() => handleDownloadCoverLetter(cv.id, "docx")}
+                          onClick={() =>
+                            handleDownloadCoverLetter(cv.id, "docx")
+                          }
                           className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                         >
                           Download DOCX
@@ -340,7 +349,7 @@ export default function CvPage() {
                       </div>
                     </div>
                     <div className="max-h-[32rem] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-950">
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-headings:mt-4 prose-headings:mb-1.5 prose-ul:my-2 prose-li:my-0.5">
                         <ReactMarkdown>{coverLetterByCv[cv.id]}</ReactMarkdown>
                       </div>
                     </div>
@@ -369,7 +378,7 @@ export default function CvPage() {
                       </div>
                     </div>
                     <div className="max-h-[32rem] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-950">
-                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-headings:mt-4 prose-headings:mb-1.5 prose-ul:my-2 prose-li:my-0.5">
                         <ReactMarkdown>{rewrittenByCv[cv.id]}</ReactMarkdown>
                       </div>
                     </div>

@@ -326,10 +326,19 @@ public async Task<ActionResult<CoverLetterResponse>> GenerateCoverLetter(int cvI
 
     var prompt = $@"Write a professional cover letter for the job below, based on the candidate's CV.
 Keep it truthful — only reference experience, skills, and achievements that appear in the CV. Do not invent
-anything. Keep it to 3-4 short paragraphs. Address it generically (e.g. 'Dear Hiring Manager') unless a
-contact name is obvious from the job description.
+anything.
 
-Format as clean Markdown. Return ONLY the cover letter, no commentary.
+Structure it as a proper business letter in Markdown, in this order:
+1. A header: the candidate's name as a level-2 heading (##), then their contact details (email, location,
+   LinkedIn/GitHub if present in the CV) on ONE line separated by ' | '.
+2. This exact date on its own line: {DateTime.UtcNow:MMMM d, yyyy}.
+3. The company name and role on its own line: '{jobApplication.CompanyName} — {jobApplication.JobTitle}'.
+4. A greeting: 'Dear Hiring Manager,' (or a contact name only if one is clearly given in the job description).
+5. Two or three concise body paragraphs — each a single paragraph, separated by one blank line.
+6. A sign-off: 'Sincerely,' on its own line, then the candidate's name on the next line (use a trailing
+   double-space after 'Sincerely,' so it stays on its own line).
+
+Return ONLY the Markdown cover letter, no commentary, no code block.
 
 Candidate's CV:
 {cvText}
