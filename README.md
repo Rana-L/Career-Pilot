@@ -13,46 +13,59 @@ Built as a full-stack portfolio project demonstrating production-style engineeri
 
 ## Features
 
-- User registration and login (JWT authentication)
-- Job application tracker — add, edit, and track applications by status (Wishlist, Applied, Assessment, Interview, Offer, Rejected)
-- Dashboard with application counts by status
-- CV upload and secure storage (Amazon S3, private bucket with time-limited signed download links)
-- CVs accepted as PDF, DOCX, or plain text
-- AI-powered CV-to-job-description match scoring (OpenAI), with missing skills identified
-- Full analysis history — every past match result is saved and viewable, not just the latest
-- Upload validation (file size/type limits) and a cooldown on repeat analyses, to keep usage predictable
-- Responsive, modern UI with shared navigation across the app
+**Accounts & security**
+- Registration and login with JWT authentication (no server-side session state)
+- Server-side validation: real email format, strong-password policy (length + character classes)
+- Case-insensitive email, constant-time login response to prevent account enumeration
+- Per-IP rate limiting on the auth endpoints
 
-**Planned / stretch**
-- AI-assisted CV rewriting to better match a specific job's keywords/ATS filters
-- AI-generated cover letters
+**Application tracking**
+- Add, edit, and track applications by status (Wishlist, Applied, Assessment, Interview, Offer, Rejected)
+- Paste a job posting and have AI fill in the company, title, and description
+- Dashboard with application counts by status
+
+**CVs & AI**
+- CV upload and secure storage (private S3 bucket, time-limited signed download links)
+- CVs accepted as PDF, DOCX, or plain text — real text extraction from each
+- AI CV-to-job-description **match scoring** with missing skills identified, and full analysis history
+- AI **CV rewrite** tailored to a job — rendered as a live document preview, downloadable as PDF or DOCX
+- AI **cover letter** generation from a CV + job — same preview and PDF/DOCX download
+- Upload validation (size/type) and a cooldown on repeat analyses to keep AI usage predictable
+
+**Engineering**
+- Responsive, modern UI with a shared navigation shell
+- 42 backend tests (xUnit) covering auth, IDOR protection, validation, and document generation, run in CI
+- GitHub Actions CI builds/lints/type-checks and tests both apps on every push
+
+**Possible future work**
 - Interview preparation questions with AI feedback
 - Deeper analytics (response times, most successful CV version, etc.)
-- Automated backend test suite (xUnit, mocked AWS/OpenAI dependencies)
+- URL-based job posting import (currently paste-text only, since major job boards block server-side scraping)
 
 ## Architecture
 
 ```
 Next.js frontend  →  ASP.NET Core API  →  PostgreSQL
                             │
-                            ├──  Amazon S3        (CV storage)
-                            └──  OpenAI API        (CV match analysis)
+                            ├──  Amazon S3   (CV file storage)
+                            └──  OpenAI API  (match scoring, CV rewrite, cover letter, job parsing)
 ```
 
 - REST API built with ASP.NET Core, EF Core for data access
 - JWT-based authentication, no server-side session state
 - PostgreSQL for relational data (users, applications, CVs, analyses)
 - CV files stored in a private S3 bucket; only the object key is persisted in the database, with signed URLs generated on demand for downloads
-- CI (GitHub Actions) builds/lints/type-checks both the backend and frontend on every push
+- AI-generated documents are produced as Markdown, then rendered to PDF (QuestPDF) and DOCX (OpenXML) server-side
+- CI (GitHub Actions) builds/lints/type-checks and tests both apps on every push
 
 ## Tech Stack
 
-**Backend:** ASP.NET Core, C#, Entity Framework Core, PostgreSQL, PdfPig (PDF text extraction), DocumentFormat.OpenXml (DOCX text extraction)
-**Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS
-**Auth:** JWT (custom implementation with BCrypt password hashing)
-**Cloud:** AWS S3 (CV storage), OpenAI API (CV match analysis)
+**Backend:** ASP.NET Core, C#, Entity Framework Core, PostgreSQL, PdfPig (PDF text extraction), DocumentFormat.OpenXml (DOCX read/write), QuestPDF (PDF generation), Markdig (Markdown parsing)
+**Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS, react-markdown
+**Auth:** JWT with BCrypt hashing, strong-password policy, per-IP rate limiting
+**Cloud:** AWS S3 (CV storage), OpenAI API (all AI features)
 **Deployment:** Vercel (frontend), Render (backend + PostgreSQL, Docker-based)
-**DevOps:** Docker (local Postgres), GitHub Actions (CI for backend and frontend)
+**Testing / DevOps:** xUnit + Moq + EF Core InMemory, Docker (local Postgres), GitHub Actions CI
 
 ## Roadmap
 
@@ -66,6 +79,10 @@ Next.js frontend  →  ASP.NET Core API  →  PostgreSQL
 - [x] S3 CV upload
 - [x] OpenAI CV-match analysis endpoint
 - [x] Deployment (frontend + backend live)
+- [x] AI CV rewrite + cover letter, with PDF/DOCX export
+- [x] Paste-a-job-posting auto-fill
+- [x] Auth hardening (password policy, rate limiting, anti-enumeration)
+- [x] Backend test suite in CI
 
 ## Getting Started
 

@@ -3,6 +3,7 @@ using CareerPilot.Api.data;
 using CareerPilot.Api.dto;
 using CareerPilot.Api.models;
 using Microsoft.AspNetCore.Mvc;
+using OpenAI.Chat;
 using Xunit;
 
 namespace CareerPilot.Api.Tests;
@@ -11,9 +12,21 @@ public class ApplicationsControllerTests
 {
     private static ApplicationsController CreateController(AppDbContext context, int userId)
     {
-        var controller = new ApplicationsController(context);
+        var chatClient = new ChatClient("gpt-4o-mini", "test-api-key");
+        var controller = new ApplicationsController(context, chatClient);
         TestHelpers.SetUser(controller, userId);
         return controller;
+    }
+
+    [Fact]
+    public async Task Parse_WithEmptyText_ReturnsBadRequest()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var controller = CreateController(context, userId: 1);
+
+        var result = await controller.Parse(new ParseJobRequest { Text = "  " });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
     }
 
     [Fact]

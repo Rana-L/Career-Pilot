@@ -4,8 +4,10 @@ using CareerPilot.Api.models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OpenAI.Chat;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace CareerPilot.Api.Controllers;
 
@@ -15,15 +17,44 @@ namespace CareerPilot.Api.Controllers;
 public class ApplicationsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly ChatClient _chatClient;
 
-    public ApplicationsController(AppDbContext context)
+    public ApplicationsController(AppDbContext context, ChatClient chatClient)
     {
         _context = context;
+        _chatClient = chatClient;
     }
 
     private int GetUserId()
     {
         return int.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Sub)!);
+    }
+
+    [HttpPost("parse")]
+    public async Task<ActionResult<ParseJobResponse>> Parse(ParseJobRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest("Paste a job posting first.");
+
+        var prompt = $@"Extract the company name, job title, and job description from the job posting below.
+Respond ONLY with a JSON object in this exact shape:
+{{""companyName"": ""..."", ""jobTitle"": ""..."", ""jobDescription"": ""...""}}
+For jobDescription, include the responsibilities and requirements as clean plain text; leave out
+boilerplate like equal-opportunity statements, benefits fluff, and application instructions. If a field
+can't be found, use an empty string.
+
+Job posting:
+{request.Text}";
+
+        var chatResponse = await _chatClient.CompleteChatAsync(
+            [new UserChatMessage(prompt)],
+            new ChatCompletionOptions { ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat() });
+
+        var json = chatResponse.Value.Content[0].Text;
+        var parsed = JsonSerializer.Deserialize<ParseJobResponse>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+        return Ok(parsed);
     }
 
     [HttpGet]

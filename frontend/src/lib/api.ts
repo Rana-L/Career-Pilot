@@ -122,6 +122,27 @@ export async function getApplication(
   return res.json();
 }
 
+export interface ParsedJob {
+  companyName: string;
+  jobTitle: string;
+  jobDescription: string;
+}
+
+export async function parseJobPosting(
+  token: string,
+  text: string,
+): Promise<ParsedJob> {
+  const res = await authFetch("/api/applications/parse", token, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to parse job posting");
+  }
+  return res.json();
+}
+
 export async function createApplication(
   token: string,
   input: CreateApplicationInput,
