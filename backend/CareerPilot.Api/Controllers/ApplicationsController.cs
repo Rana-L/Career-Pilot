@@ -175,7 +175,14 @@ Job posting:
         }
 
         _context.JobApplications.Remove(application);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A duplicate request already deleted this row — nothing left to do.
+        }
 
         return NoContent();
     }

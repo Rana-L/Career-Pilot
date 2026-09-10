@@ -28,6 +28,7 @@ export default function CvPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [deletingCvId, setDeletingCvId] = useState<number | null>(null);
 
   const [selectedJobByCv, setSelectedJobByCv] = useState<
     Record<number, number>
@@ -90,12 +91,15 @@ export default function CvPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!token) return;
+    if (!token || deletingCvId !== null) return;
+    setDeletingCvId(id);
     try {
       await deleteCv(token, id);
       setCvs((prev) => prev.filter((cv) => cv.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeletingCvId(null);
     }
   }
 
@@ -261,9 +265,10 @@ export default function CvPage() {
                     </button>
                     <button
                       onClick={() => handleDelete(cv.id)}
-                      className="text-sm font-medium text-red-600 hover:text-red-500 dark:text-red-400"
+                      disabled={deletingCvId === cv.id}
+                      className="text-sm font-medium text-red-600 hover:text-red-500 disabled:opacity-50 dark:text-red-400"
                     >
-                      Delete
+                      {deletingCvId === cv.id ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 </div>

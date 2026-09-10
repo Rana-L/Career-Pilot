@@ -160,7 +160,14 @@ public class CvController : ControllerBase
         await _s3Client.DeleteObjectAsync(bucketName, cv.S3Url);
 
         _context.Cvs.Remove(cv);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A duplicate request already deleted this row — nothing left to do.
+        }
 
         return NoContent();
     }

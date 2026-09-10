@@ -17,6 +17,7 @@ export default function ApplicationsPage() {
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -48,12 +49,15 @@ export default function ApplicationsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!token) return;
+    if (!token || deletingId !== null) return;
+    setDeletingId(id);
     try {
       await deleteApplication(token, id);
       setApplications((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -148,9 +152,10 @@ export default function ApplicationsPage() {
 
                 <button
                   onClick={() => handleDelete(app.id)}
-                  className="text-sm font-medium text-red-600 transition-colors hover:text-red-500 dark:text-red-400"
+                  disabled={deletingId === app.id}
+                  className="text-sm font-medium text-red-600 transition-colors hover:text-red-500 disabled:opacity-50 dark:text-red-400"
                 >
-                  Delete
+                  {deletingId === app.id ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>

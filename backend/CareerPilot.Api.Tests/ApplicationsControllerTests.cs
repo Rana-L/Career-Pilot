@@ -122,4 +122,21 @@ public class ApplicationsControllerTests
         Assert.IsType<NoContentResult>(result);
         Assert.Empty(context.JobApplications);
     }
+
+    [Fact]
+    public async Task Delete_CalledTwice_DoesNotThrow()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var myApp = new JobApplication { UserId = 1, CompanyName = "MineCo", JobTitle = "Dev" };
+        context.JobApplications.Add(myApp);
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(context, userId: 1);
+
+        await controller.Delete(myApp.Id);
+        var secondResult = await controller.Delete(myApp.Id);
+
+        Assert.IsType<NotFoundResult>(secondResult);
+        Assert.Empty(context.JobApplications);
+    }
 }
