@@ -41,6 +41,45 @@ public class CvController : ControllerBase
         return int.Parse(sub!);
     }
 
+    private async Task<string> ExtractCvTextAsync(Cv cv)
+    {
+        var bucketName = _configuration["Aws:BucketName"];
+        var getRequest = new GetObjectRequest { BucketName = bucketName, Key = cv.S3Url };
+        using var response = await _s3Client.GetObjectAsync(getRequest);
+        using var memoryStream = new MemoryStream();
+        await response.ResponseStream.CopyToAsync(memoryStream);
+        var fileBytes = memoryStream.ToArray();
+
+        if (cv.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            using var pdf = PdfDocument.Open(fileBytes);
+            var textBuilder = new StringBuilder();
+            foreach (var page in pdf.GetPages())
+            {
+                textBuilder.AppendLine(page.Text);
+            }
+            return textBuilder.ToString();
+        }
+
+        if (cv.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+        {
+            using var docStream = new MemoryStream(fileBytes);
+            using var wordDoc = WordprocessingDocument.Open(docStream, false);
+            var body = wordDoc.MainDocumentPart?.Document?.Body;
+            var textBuilder = new StringBuilder();
+            if (body != null)
+            {
+                foreach (var paragraph in body.Descendants<Paragraph>())
+                {
+                    textBuilder.AppendLine(paragraph.InnerText);
+                }
+            }
+            return textBuilder.ToString();
+        }
+
+        return Encoding.UTF8.GetString(fileBytes);
+    }
+
     private static readonly string[] AllowedCvExtensions = [".pdf", ".docx", ".txt"];
     private const long MaxCvFileSizeBytes = 5 * 1024 * 1024; // 5 MB
     private static readonly TimeSpan AnalyzeCooldown = TimeSpan.FromSeconds(60);
@@ -168,43 +207,7 @@ public async Task<ActionResult<CvAnalysisResponse>> Analyze(int cvId, int jobApp
         return StatusCode(429, $"Please wait {secondsLeft} more second(s) before re-analyzing this CV against this job.");
     }
 
-    var bucketName = _configuration["Aws:BucketName"];
-    var getRequest = new GetObjectRequest { BucketName = bucketName, Key = cv.S3Url };
-    using var response = await _s3Client.GetObjectAsync(getRequest);
-    using var memoryStream = new MemoryStream();
-    await response.ResponseStream.CopyToAsync(memoryStream);
-    var fileBytes = memoryStream.ToArray();
-
-    string cvText;
-    if (cv.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-    {
-        using var pdf = PdfDocument.Open(fileBytes);
-        var textBuilder = new StringBuilder();
-        foreach (var page in pdf.GetPages())
-        {
-            textBuilder.AppendLine(page.Text);
-        }
-        cvText = textBuilder.ToString();
-    }
-    else if (cv.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
-    {
-        using var docStream = new MemoryStream(fileBytes);
-        using var wordDoc = WordprocessingDocument.Open(docStream, false);
-        var body = wordDoc.MainDocumentPart?.Document?.Body;
-        var textBuilder = new StringBuilder();
-        if (body != null)
-        {
-            foreach (var paragraph in body.Descendants<Paragraph>())
-            {
-                textBuilder.AppendLine(paragraph.InnerText);
-            }
-        }
-        cvText = textBuilder.ToString();
-    }
-    else
-    {
-        cvText = Encoding.UTF8.GetString(fileBytes);
-    }
+    var cvText = await ExtractCvTextAsync(cv);
 
    var prompt = $@"Compare this CV against the job description below. Respond ONLY with a JSON object
    in this exact shape: {{""matchScore"": <integer 0-100>, ""missingSkills"": ""<comma-separated list of missing skills>""}}
@@ -269,6 +272,38 @@ public async Task<ActionResult<List<CvAnalysisResponse>>> GetAnalyses(int cvId)
         .ToListAsync();
 
     return Ok(analyses);
+}
+
+[HttpPost("{cvId}/rewrite/{jobApplicationId}")]
+public async Task<ActionResult<CvRewriteResponse>> Rewrite(int cvId, int jobApplicationId)
+{
+    var userId = GetUserId();
+
+    var cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Id == cvId && c.UserId == userId);
+    if (cv == null) return NotFound("CV not found.");
+
+    var jobApplication = await _context.JobApplications
+        .FirstOrDefaultAsync(j => j.Id == jobApplicationId && j.UserId == userId);
+    if (jobApplication == null) return NotFound("Job application not found.");
+
+    var cvText = await ExtractCvTextAsync(cv);
+
+    var prompt = $@"Rewrite this CV to better match the job description below, so it reads well to both a
+human recruiter and an ATS (applicant tracking system) keyword scan. Keep it truthful — reorder, rephrase,
+and emphasise relevant existing experience and skills, but do not invent experience, skills, or qualifications
+that aren't already present in the original CV. Return ONLY the rewritten CV as plain text, no commentary,
+no markdown formatting.
+
+Original CV:
+{cvText}
+
+Job Description:
+{jobApplication.JobDescription}";
+
+    var chatResponse = await _chatClient.CompleteChatAsync([new UserChatMessage(prompt)]);
+    var rewrittenCv = chatResponse.Value.Content[0].Text;
+
+    return Ok(new CvRewriteResponse { RewrittenCv = rewrittenCv });
 }
 
 private class AnalysisResult

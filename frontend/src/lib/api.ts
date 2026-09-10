@@ -236,3 +236,26 @@ export async function getCvAnalyses(
   if (!res.ok) throw new Error("Failed to load analysis history");
   return res.json();
 }
+
+export interface CvRewriteResult {
+  rewrittenCv: string;
+}
+
+export async function rewriteCv(
+  token: string,
+  cvId: number,
+  jobApplicationId: number,
+): Promise<CvRewriteResult> {
+  const res = await authFetch(
+    `/api/cv/${cvId}/rewrite/${jobApplicationId}`,
+    token,
+    {
+      method: "POST",
+    },
+  );
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to rewrite CV");
+  }
+  return res.json();
+}

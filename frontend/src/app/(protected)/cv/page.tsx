@@ -9,6 +9,7 @@ import {
   getCvDownloadUrl,
   analyzeCv,
   getCvAnalyses,
+  rewriteCv,
   getApplications,
   type Cv,
   type JobApplication,
@@ -25,9 +26,17 @@ export default function CvPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const [selectedJobByCv, setSelectedJobByCv] = useState<Record<number, number>>({});
+  const [selectedJobByCv, setSelectedJobByCv] = useState<
+    Record<number, number>
+  >({});
   const [analyzingCvId, setAnalyzingCvId] = useState<number | null>(null);
-  const [historyByCv, setHistoryByCv] = useState<Record<number, CvAnalysisResult[]>>({});
+  const [historyByCv, setHistoryByCv] = useState<
+    Record<number, CvAnalysisResult[]>
+  >({});
+  const [rewritingCvId, setRewritingCvId] = useState<number | null>(null);
+  const [rewrittenByCv, setRewrittenByCv] = useState<Record<number, string>>(
+    {},
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -45,13 +54,17 @@ export default function CvPage() {
         });
         setHistoryByCv(historyMap);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Failed to load"),
+      )
       .finally(() => setIsLoading(false));
   }, [token]);
 
   function jobLabel(jobApplicationId: number): string {
     const app = applications.find((a) => a.id === jobApplicationId);
-    return app ? `${app.jobTitle} — ${app.companyName}` : "Deleted job application";
+    return app
+      ? `${app.jobTitle} — ${app.companyName}`
+      : "Deleted job application";
   }
 
   async function handleUpload() {
@@ -85,7 +98,9 @@ export default function CvPage() {
       const url = await getCvDownloadUrl(token, id);
       window.open(url, "_blank");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to get download link");
+      setError(
+        err instanceof Error ? err.message : "Failed to get download link",
+      );
     }
   }
 
@@ -109,6 +124,23 @@ export default function CvPage() {
     }
   }
 
+  async function handleRewrite(cvId: number) {
+    if (!token) return;
+    const jobApplicationId = selectedJobByCv[cvId];
+    if (!jobApplicationId) return;
+
+    setRewritingCvId(cvId);
+    setError(null);
+    try {
+      const result = await rewriteCv(token, cvId, jobApplicationId);
+      setRewrittenByCv((prev) => ({ ...prev, [cvId]: result.rewrittenCv }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to rewrite CV");
+    } finally {
+      setRewritingCvId(null);
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6 sm:p-8">
       <div>
@@ -116,7 +148,8 @@ export default function CvPage() {
           CVs
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Upload a CV and check how well it matches a role you&apos;re applying to.
+          Upload a CV and check how well it matches a role you&apos;re applying
+          to.
         </p>
       </div>
 
@@ -161,7 +194,9 @@ export default function CvPage() {
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-medium text-zinc-900 dark:text-white">{cv.fileName}</p>
+                    <p className="font-medium text-zinc-900 dark:text-white">
+                      {cv.fileName}
+                    </p>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       Uploaded {new Date(cv.uploadedAt).toLocaleString()}
                     </p>
@@ -203,11 +238,50 @@ export default function CvPage() {
                     </select>
                     <button
                       onClick={() => handleAnalyze(cv.id)}
-                      disabled={!selectedJobByCv[cv.id] || analyzingCvId === cv.id}
+                      disabled={
+                        !selectedJobByCv[cv.id] || analyzingCvId === cv.id
+                      }
                       className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
                     >
-                      {analyzingCvId === cv.id ? "Analysing..." : "Analyse match"}
+                      {analyzingCvId === cv.id
+                        ? "Analysing..."
+                        : "Analyse match"}
                     </button>
+                    <button
+                      onClick={() => handleRewrite(cv.id)}
+                      disabled={
+                        !selectedJobByCv[cv.id] || rewritingCvId === cv.id
+                      }
+                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      {rewritingCvId === cv.id
+                        ? "Rewriting..."
+                        : "Rewrite CV for this job"}
+                    </button>
+                  </div>
+                )}
+
+                {rewrittenByCv[cv.id] && (
+                  <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Rewritten CV
+                      </p>
+                      <button
+                        onClick={() =>
+                          navigator.clipboard.writeText(rewrittenByCv[cv.id])
+                        }
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+                      >
+                        Copy to clipboard
+                      </button>
+                    </div>
+                    <textarea
+                      readOnly
+                      value={rewrittenByCv[cv.id]}
+                      rows={12}
+                      className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+                    />
                   </div>
                 )}
 
@@ -230,14 +304,18 @@ export default function CvPage() {
                               {new Date(entry.createdAt).toLocaleString()}
                             </p>
                           </div>
-                          <p className={`text-lg font-semibold ${scoreColor(entry.matchScore)}`}>
+                          <p
+                            className={`text-lg font-semibold ${scoreColor(entry.matchScore)}`}
+                          >
                             {entry.matchScore}%
                           </p>
                         </div>
                         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
                           <div
                             className={`h-full rounded-full ${scoreBarColor(entry.matchScore)}`}
-                            style={{ width: `${Math.min(100, Math.max(0, entry.matchScore))}%` }}
+                            style={{
+                              width: `${Math.min(100, Math.max(0, entry.matchScore))}%`,
+                            }}
                           />
                         </div>
                         {entry.missingSkills && (
