@@ -3,17 +3,24 @@ using CareerPilot.Api.dto;
 using CareerPilot.Api.models;
 using CareerPilot.Api.services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace CareerPilot.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-
+[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly TokenService _tokenService;
+
+    // Computed once at startup; used to keep the login response time roughly
+    // constant whether or not the email exists, so response timing can't be
+    // used to enumerate registered accounts.
+    private static readonly string DummyPasswordHash =
+        BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
 
     public AuthController(AppDbContext context, TokenService tokenServices)
     {
@@ -24,15 +31,23 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register(RegisterRequest request)
     {
-        var emailExists = await _context.Users.AnyAsync( u => u.Email == request.Email);
+        var emailError = AuthValidation.ValidateEmail(request.Email);
+        if (emailError is not null) return BadRequest(emailError);
+
+        var passwordError = AuthValidation.ValidatePassword(request.Password);
+        if (passwordError is not null) return BadRequest(passwordError);
+
+        var email = AuthValidation.NormalizeEmail(request.Email);
+
+        var emailExists = await _context.Users.AnyAsync(u => u.Email == email);
         if (emailExists)
         {
-            return BadRequest("A user with this email already exists");
+            return BadRequest("A user with this email already exists.");
         }
 
         var user = new User
         {
-            Email = request.Email,
+            Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
         };
 
@@ -47,8 +62,13 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        var email = AuthValidation.NormalizeEmail(request.Email);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+        var passwordMatches = BCrypt.Net.BCrypt.Verify(
+            request.Password, user?.PasswordHash ?? DummyPasswordHash);
+
+        if (user is null || !passwordMatches)
         {
             return Unauthorized("Invalid email or password.");
         }

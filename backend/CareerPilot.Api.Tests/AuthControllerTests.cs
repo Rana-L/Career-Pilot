@@ -72,4 +72,55 @@ public class AuthControllerTests
 
         Assert.IsType<UnauthorizedObjectResult>(result.Result);
     }
+
+    [Theory]
+    [InlineData("not-an-email")]
+    [InlineData("missing@domain")]
+    [InlineData("@example.com")]
+    public async Task Register_WithInvalidEmail_ReturnsBadRequest(string email)
+    {
+        var controller = CreateController();
+
+        var result = await controller.Register(new RegisterRequest { Email = email, Password = "Password123!" });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Theory]
+    [InlineData("short1!")]        // too short
+    [InlineData("alllowercase1!")] // no uppercase
+    [InlineData("ALLUPPERCASE1!")] // no lowercase
+    [InlineData("NoNumbersHere!")] // no digit
+    [InlineData("NoSymbolHere1")]  // no symbol
+    public async Task Register_WithWeakPassword_ReturnsBadRequest(string password)
+    {
+        var controller = CreateController();
+
+        var result = await controller.Register(new RegisterRequest { Email = "weak@example.com", Password = password });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task Register_NormalisesEmailToLowercase()
+    {
+        var controller = CreateController();
+
+        var result = await controller.Register(new RegisterRequest { Email = "MixedCase@Example.com", Password = "Password123!" });
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<AuthResponse>(ok.Value);
+        Assert.Equal("mixedcase@example.com", response.Email);
+    }
+
+    [Fact]
+    public async Task Login_IsCaseInsensitiveOnEmail()
+    {
+        var controller = CreateController();
+        await controller.Register(new RegisterRequest { Email = "casetest@example.com", Password = "Password123!" });
+
+        var result = await controller.Login(new LoginRequest { Email = "CaseTest@Example.com", Password = "Password123!" });
+
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
 }
