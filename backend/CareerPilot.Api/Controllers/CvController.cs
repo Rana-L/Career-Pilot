@@ -310,6 +310,39 @@ Job Description:
     return Ok(new CvRewriteResponse { RewrittenCv = rewrittenCv });
 }
 
+[HttpPost("{cvId}/cover-letter/{jobApplicationId}")]
+public async Task<ActionResult<CoverLetterResponse>> GenerateCoverLetter(int cvId, int jobApplicationId)
+{
+    var userId = GetUserId();
+
+    var cv = await _context.Cvs.FirstOrDefaultAsync(c => c.Id == cvId && c.UserId == userId);
+    if (cv == null) return NotFound("CV not found.");
+
+    var jobApplication = await _context.JobApplications
+        .FirstOrDefaultAsync(j => j.Id == jobApplicationId && j.UserId == userId);
+    if (jobApplication == null) return NotFound("Job application not found.");
+
+    var cvText = await ExtractCvTextAsync(cv);
+
+    var prompt = $@"Write a professional cover letter for the job below, based on the candidate's CV.
+Keep it truthful — only reference experience, skills, and achievements that appear in the CV. Do not invent
+anything. Keep it to 3-4 short paragraphs. Address it generically (e.g. 'Dear Hiring Manager') unless a
+contact name is obvious from the job description.
+
+Format as clean Markdown. Return ONLY the cover letter, no commentary.
+
+Candidate's CV:
+{cvText}
+
+Job ({jobApplication.JobTitle} at {jobApplication.CompanyName}):
+{jobApplication.JobDescription}";
+
+    var chatResponse = await _chatClient.CompleteChatAsync([new UserChatMessage(prompt)]);
+    var coverLetter = chatResponse.Value.Content[0].Text;
+
+    return Ok(new CoverLetterResponse { CoverLetter = coverLetter });
+}
+
 private class AnalysisResult
 {
     public int MatchScore { get; set; }

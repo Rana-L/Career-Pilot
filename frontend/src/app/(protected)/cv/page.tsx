@@ -11,6 +11,7 @@ import {
   analyzeCv,
   getCvAnalyses,
   rewriteCv,
+  generateCoverLetter,
   getApplications,
   downloadDocument,
   type Cv,
@@ -37,6 +38,10 @@ export default function CvPage() {
   >({});
   const [rewritingCvId, setRewritingCvId] = useState<number | null>(null);
   const [rewrittenByCv, setRewrittenByCv] = useState<Record<number, string>>(
+    {},
+  );
+  const [coverLetterCvId, setCoverLetterCvId] = useState<number | null>(null);
+  const [coverLetterByCv, setCoverLetterByCv] = useState<Record<number, string>>(
     {},
   );
 
@@ -149,6 +154,34 @@ export default function CvPage() {
     if (!markdown) return;
     try {
       await downloadDocument(token, markdown, "tailored-cv", format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to download");
+    }
+  }
+
+  async function handleCoverLetter(cvId: number) {
+    if (!token) return;
+    const jobApplicationId = selectedJobByCv[cvId];
+    if (!jobApplicationId) return;
+
+    setCoverLetterCvId(cvId);
+    setError(null);
+    try {
+      const result = await generateCoverLetter(token, cvId, jobApplicationId);
+      setCoverLetterByCv((prev) => ({ ...prev, [cvId]: result.coverLetter }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate cover letter");
+    } finally {
+      setCoverLetterCvId(null);
+    }
+  }
+
+  async function handleDownloadCoverLetter(cvId: number, format: "pdf" | "docx") {
+    if (!token) return;
+    const markdown = coverLetterByCv[cvId];
+    if (!markdown) return;
+    try {
+      await downloadDocument(token, markdown, "cover-letter", format);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to download");
     }
@@ -271,6 +304,46 @@ export default function CvPage() {
                         ? "Rewriting..."
                         : "Rewrite CV for this job"}
                     </button>
+                    <button
+                      onClick={() => handleCoverLetter(cv.id)}
+                      disabled={
+                        !selectedJobByCv[cv.id] || coverLetterCvId === cv.id
+                      }
+                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      {coverLetterCvId === cv.id
+                        ? "Writing..."
+                        : "Generate cover letter"}
+                    </button>
+                  </div>
+                )}
+
+                {coverLetterByCv[cv.id] && (
+                  <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Cover letter preview
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleDownloadCoverLetter(cv.id, "pdf")}
+                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        >
+                          Download PDF
+                        </button>
+                        <button
+                          onClick={() => handleDownloadCoverLetter(cv.id, "docx")}
+                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        >
+                          Download DOCX
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-[32rem] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-950">
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown>{coverLetterByCv[cv.id]}</ReactMarkdown>
+                      </div>
+                    </div>
                   </div>
                 )}
 

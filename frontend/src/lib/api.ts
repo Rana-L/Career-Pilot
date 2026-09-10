@@ -260,6 +260,29 @@ export async function rewriteCv(
   return res.json();
 }
 
+export interface CoverLetterResult {
+  coverLetter: string;
+}
+
+export async function generateCoverLetter(
+  token: string,
+  cvId: number,
+  jobApplicationId: number,
+): Promise<CoverLetterResult> {
+  const res = await authFetch(
+    `/api/cv/${cvId}/cover-letter/${jobApplicationId}`,
+    token,
+    {
+      method: "POST",
+    },
+  );
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to generate cover letter");
+  }
+  return res.json();
+}
+
 export async function downloadDocument(
   token: string,
   markdown: string,
