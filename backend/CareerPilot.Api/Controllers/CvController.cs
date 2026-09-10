@@ -329,8 +329,8 @@ Keep it truthful — only reference experience, skills, and achievements that ap
 anything.
 
 Structure it as a proper business letter in Markdown, in this order:
-1. A header: the candidate's name as a level-2 heading (##), then their contact details (email, location,
-   LinkedIn/GitHub if present in the CV) on ONE line separated by ' | '.
+1. A header: the candidate's name as a level-2 heading (##). Do NOT include email, phone, address,
+   LinkedIn, GitHub, or any other contact details anywhere in the letter.
 2. This exact date on its own line: {DateTime.UtcNow:MMMM d, yyyy}.
 3. The company name and role on its own line: '{jobApplication.CompanyName} — {jobApplication.JobTitle}'.
 4. A greeting: 'Dear Hiring Manager,' (or a contact name only if one is clearly given in the job description).
