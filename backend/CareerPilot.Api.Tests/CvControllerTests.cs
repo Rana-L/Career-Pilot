@@ -166,4 +166,42 @@ public class CvControllerTests
 
         Assert.IsType<NotFoundResult>(result.Result);
     }
+
+    [Fact]
+    public async Task Rewrite_ForAnotherUsersCv_ReturnsNotFound()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var theirCv = new Cv { UserId = 2, FileName = "cv.txt", S3Url = "cvs/2/cv.txt" };
+        var myJob = new JobApplication { UserId = 1, CompanyName = "Co", JobTitle = "Dev" };
+        context.Cvs.Add(theirCv);
+        context.JobApplications.Add(myJob);
+        await context.SaveChangesAsync();
+
+        var s3Mock = new Mock<IAmazonS3>();
+        var controller = CreateController(context, userId: 1, s3Mock);
+
+        var result = await controller.Rewrite(theirCv.Id, myJob.Id);
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.Equal("CV not found.", notFound.Value);
+    }
+
+    [Fact]
+    public async Task GenerateCoverLetter_ForAnotherUsersJob_ReturnsNotFound()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var myCv = new Cv { UserId = 1, FileName = "cv.txt", S3Url = "cvs/1/cv.txt" };
+        var theirJob = new JobApplication { UserId = 2, CompanyName = "Co", JobTitle = "Dev" };
+        context.Cvs.Add(myCv);
+        context.JobApplications.Add(theirJob);
+        await context.SaveChangesAsync();
+
+        var s3Mock = new Mock<IAmazonS3>();
+        var controller = CreateController(context, userId: 1, s3Mock);
+
+        var result = await controller.GenerateCoverLetter(myCv.Id, theirJob.Id);
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
+        Assert.Equal("Job application not found.", notFound.Value);
+    }
 }
