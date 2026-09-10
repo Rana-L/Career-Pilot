@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import ReactMarkdown from "react-markdown";
 import {
   getCvs,
   uploadCv,
@@ -11,6 +12,7 @@ import {
   getCvAnalyses,
   rewriteCv,
   getApplications,
+  downloadDocument,
   type Cv,
   type JobApplication,
   type CvAnalysisResult,
@@ -141,6 +143,17 @@ export default function CvPage() {
     }
   }
 
+  async function handleDownloadRewrite(cvId: number, format: "pdf" | "docx") {
+    if (!token) return;
+    const markdown = rewrittenByCv[cvId];
+    if (!markdown) return;
+    try {
+      await downloadDocument(token, markdown, "tailored-cv", format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to download");
+    }
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-6 sm:p-8">
       <div>
@@ -262,26 +275,31 @@ export default function CvPage() {
                 )}
 
                 {rewrittenByCv[cv.id] && (
-                  <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-                    <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        Rewritten CV
+                        Tailored CV preview
                       </p>
-                      <button
-                        onClick={() =>
-                          navigator.clipboard.writeText(rewrittenByCv[cv.id])
-                        }
-                        className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-                      >
-                        Copy to clipboard
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleDownloadRewrite(cv.id, "pdf")}
+                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        >
+                          Download PDF
+                        </button>
+                        <button
+                          onClick={() => handleDownloadRewrite(cv.id, "docx")}
+                          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        >
+                          Download DOCX
+                        </button>
+                      </div>
                     </div>
-                    <textarea
-                      readOnly
-                      value={rewrittenByCv[cv.id]}
-                      rows={12}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
-                    />
+                    <div className="max-h-[32rem] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-950">
+                      <div className="prose prose-sm max-w-none dark:prose-invert">
+                        <ReactMarkdown>{rewrittenByCv[cv.id]}</ReactMarkdown>
+                      </div>
+                    </div>
                   </div>
                 )}
 

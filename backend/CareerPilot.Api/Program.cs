@@ -10,6 +10,9 @@ using OpenAI.Chat;
 
 var builder = WebApplication.CreateBuilder(args);
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -41,6 +44,9 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<TokenService>();
+
+builder.Services.AddSingleton<DocumentGenerator>();
+
 
 builder.Services.AddSingleton<IAmazonS3>(sp =>
 {

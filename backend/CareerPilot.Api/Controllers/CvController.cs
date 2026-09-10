@@ -288,17 +288,21 @@ public async Task<ActionResult<CvRewriteResponse>> Rewrite(int cvId, int jobAppl
 
     var cvText = await ExtractCvTextAsync(cv);
 
-    var prompt = $@"Rewrite this CV to better match the job description below, so it reads well to both a
-human recruiter and an ATS (applicant tracking system) keyword scan. Keep it truthful — reorder, rephrase,
-and emphasise relevant existing experience and skills, but do not invent experience, skills, or qualifications
-that aren't already present in the original CV. Return ONLY the rewritten CV as plain text, no commentary,
-no markdown formatting.
+        var prompt = $@"Rewrite this CV to better match the job description below, so it reads well to both a
+    human recruiter and an ATS (applicant tracking system) keyword scan. Keep it truthful — reorder, rephrase,
+    and emphasise relevant existing experience and skills, but do not invent experience, skills, or qualifications
+    that aren't already present in the original CV.
+    
+    Format the result as clean Markdown: use a level-1 heading (#) for the candidate's name if present, level-2
+    headings (##) for sections like Summary, Experience, Skills, Education, and bullet points (-) for lists of
+    responsibilities or skills. Do not wrap the output in a code block. Return ONLY the Markdown CV, no commentary.
 
 Original CV:
 {cvText}
 
 Job Description:
 {jobApplication.JobDescription}";
+
 
     var chatResponse = await _chatClient.CompleteChatAsync([new UserChatMessage(prompt)]);
     var rewrittenCv = chatResponse.Value.Content[0].Text;

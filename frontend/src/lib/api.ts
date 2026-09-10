@@ -259,3 +259,30 @@ export async function rewriteCv(
   }
   return res.json();
 }
+
+export async function downloadDocument(
+  token: string,
+  markdown: string,
+  fileName: string,
+  format: "pdf" | "docx",
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/documents/${format}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ markdown, fileName }),
+  });
+  if (!res.ok) throw new Error("Failed to generate document");
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${fileName}.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
