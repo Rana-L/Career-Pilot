@@ -48,6 +48,8 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<TokenService>();
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddSingleton<DocumentGenerator>();
 
 

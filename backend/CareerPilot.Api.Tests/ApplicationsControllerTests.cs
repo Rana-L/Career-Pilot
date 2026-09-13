@@ -3,6 +3,7 @@ using CareerPilot.Api.data;
 using CareerPilot.Api.dto;
 using CareerPilot.Api.models;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using OpenAI.Chat;
 using Xunit;
 
@@ -13,7 +14,8 @@ public class ApplicationsControllerTests
     private static ApplicationsController CreateController(AppDbContext context, int userId)
     {
         var chatClient = new ChatClient("gpt-4o-mini", "test-api-key");
-        var controller = new ApplicationsController(context, chatClient);
+        var httpClientFactory = new Mock<IHttpClientFactory>().Object;
+        var controller = new ApplicationsController(context, chatClient, httpClientFactory);
         TestHelpers.SetUser(controller, userId);
         return controller;
     }
@@ -25,6 +27,20 @@ public class ApplicationsControllerTests
         var controller = CreateController(context, userId: 1);
 
         var result = await controller.Parse(new ParseJobRequest { Text = "  " });
+
+        Assert.IsType<BadRequestObjectResult>(result.Result);
+    }
+
+    [Theory]
+    [InlineData("http://localhost/careers")]
+    [InlineData("http://127.0.0.1/careers")]
+    [InlineData("http://169.254.169.254/latest/meta-data/")]
+    public async Task Parse_WithInternalUrl_ReturnsBadRequest(string url)
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var controller = CreateController(context, userId: 1);
+
+        var result = await controller.Parse(new ParseJobRequest { Text = url });
 
         Assert.IsType<BadRequestObjectResult>(result.Result);
     }
