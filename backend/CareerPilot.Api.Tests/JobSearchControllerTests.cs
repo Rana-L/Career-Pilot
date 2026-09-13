@@ -1,8 +1,11 @@
 using System.Net;
 using System.Text;
 using CareerPilot.Api.Controllers;
+using CareerPilot.Api.data;
 using CareerPilot.Api.dto;
+using CareerPilot.Api.models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
@@ -35,7 +38,11 @@ public class JobSearchControllerTests
         }
     }
 
-    private static JobSearchController CreateController(HttpStatusCode statusCode, string responseBody)
+    private static JobSearchController CreateController(
+        HttpStatusCode statusCode,
+        string responseBody,
+        AppDbContext? context = null,
+        int userId = 1)
     {
         var handler = new FakeHttpMessageHandler(statusCode, responseBody);
         var httpClient = new HttpClient(handler);
@@ -49,7 +56,9 @@ public class JobSearchControllerTests
             ["Adzuna:AppKey"] = "test-app-key",
         }).Build();
 
-        return new JobSearchController(factoryMock.Object, config);
+        var controller = new JobSearchController(factoryMock.Object, config, context ?? TestHelpers.CreateInMemoryContext());
+        TestHelpers.SetUser(controller, userId);
+        return controller;
     }
 
     private const string SampleAdzunaResponse = """
@@ -114,5 +123,86 @@ public class JobSearchControllerTests
 
         var status = Assert.IsType<ObjectResult>(result.Result);
         Assert.Equal(502, status.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetSaved_WhenNoneExists_ReturnsNoContent()
+    {
+        var controller = CreateController(HttpStatusCode.OK, SampleAdzunaResponse);
+
+        var result = await controller.GetSaved();
+
+        Assert.IsType<NoContentResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task SaveSearch_ThenGetSaved_ReturnsWhatWasSaved()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var controller = CreateController(HttpStatusCode.OK, SampleAdzunaResponse, context, userId: 1);
+
+        await controller.SaveSearch(new SavedJobSearchRequest
+        {
+            Title = "Backend Engineer",
+            Location = "Manchester",
+            RadiusMiles = 25,
+        });
+
+        var result = await controller.GetSaved();
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var saved = Assert.IsType<SavedJobSearchResponse>(ok.Value);
+        Assert.Equal("Backend Engineer", saved.Title);
+        Assert.Equal("Manchester", saved.Location);
+        Assert.Equal(25, saved.RadiusMiles);
+    }
+
+    [Fact]
+    public async Task SaveSearch_CalledTwice_UpdatesInPlaceInsteadOfDuplicating()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        var controller = CreateController(HttpStatusCode.OK, SampleAdzunaResponse, context, userId: 1);
+
+        await controller.SaveSearch(new SavedJobSearchRequest
+        {
+            Title = "Backend Engineer",
+            Location = "Manchester",
+            RadiusMiles = 10,
+        });
+        await controller.SaveSearch(new SavedJobSearchRequest
+        {
+            Title = "Frontend Engineer",
+            Location = "Leeds",
+            RadiusMiles = 50,
+        });
+
+        Assert.Equal(1, await context.SavedJobSearches.CountAsync());
+
+        var result = await controller.GetSaved();
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var saved = Assert.IsType<SavedJobSearchResponse>(ok.Value);
+        Assert.Equal("Frontend Engineer", saved.Title);
+        Assert.Equal("Leeds", saved.Location);
+        Assert.Equal(50, saved.RadiusMiles);
+    }
+
+    [Fact]
+    public async Task GetSaved_OnlyReturnsCurrentUsersSearch()
+    {
+        var context = TestHelpers.CreateInMemoryContext();
+        context.SavedJobSearches.Add(new SavedJobSearch
+        {
+            UserId = 2,
+            Title = "Their Search",
+            Location = "Leeds",
+            RadiusMiles = 10,
+        });
+        await context.SaveChangesAsync();
+
+        var controller = CreateController(HttpStatusCode.OK, SampleAdzunaResponse, context, userId: 1);
+
+        var result = await controller.GetSaved();
+
+        Assert.IsType<NoContentResult>(result.Result);
     }
 }

@@ -21,8 +21,14 @@ Built as a full-stack portfolio project demonstrating production-style engineeri
 
 **Application tracking**
 - Add, edit, and track applications by status (Wishlist, Applied, Assessment, Interview, Offer, Rejected)
-- Paste a job posting and have AI fill in the company, title, and description
+- Paste a job posting — or just its URL — and have AI fill in the company, title, and description (with SSRF-guarded server-side fetching, and a graceful fallback to paste-only for sites that block scraping)
 - Dashboard with application counts by status
+
+**Job search**
+- Search for open roles by title, location, and radius (in miles) via the Adzuna Jobs API
+- One-click "Add to tracker" per result, with already-added roles flagged automatically
+- Your last search is saved to your account in PostgreSQL, so it's restored automatically when you come back — no re-typing, no stale client-side cache
+- Per-user rate limiting on search requests
 
 **CVs & AI**
 - CV upload and secure storage (private S3 bucket, time-limited signed download links)
@@ -34,26 +40,27 @@ Built as a full-stack portfolio project demonstrating production-style engineeri
 
 **Engineering**
 - Responsive, modern UI with a shared navigation shell
-- 42 backend tests (xUnit) covering auth, IDOR protection, validation, and document generation, run in CI
+- 54 backend tests (xUnit) covering auth, IDOR protection, validation, document generation, and job search, run in CI
 - GitHub Actions CI builds/lints/type-checks and tests both apps on every push
 
 **Possible future work**
 - Interview preparation questions with AI feedback
 - Deeper analytics (response times, most successful CV version, etc.)
-- URL-based job posting import (currently paste-text only, since major job boards block server-side scraping)
+- Scheduled checks for new matching jobs, with notifications (AWS Lambda + EventBridge Scheduler)
 
 ## Architecture
 
 ```
 Next.js frontend  →  ASP.NET Core API  →  PostgreSQL
                             │
-                            ├──  Amazon S3   (CV file storage)
-                            └──  OpenAI API  (match scoring, CV rewrite, cover letter, job parsing)
+                            ├──  Amazon S3    (CV file storage)
+                            ├──  OpenAI API   (match scoring, CV rewrite, cover letter, job parsing)
+                            └──  Adzuna API   (job search)
 ```
 
 - REST API built with ASP.NET Core, EF Core for data access
 - JWT-based authentication, no server-side session state
-- PostgreSQL for relational data (users, applications, CVs, analyses)
+- PostgreSQL for relational data (users, applications, CVs, analyses, saved job searches)
 - CV files stored in a private S3 bucket; only the object key is persisted in the database, with signed URLs generated on demand for downloads
 - AI-generated documents are produced as Markdown, then rendered to PDF (QuestPDF) and DOCX (OpenXML) server-side
 - CI (GitHub Actions) builds/lints/type-checks and tests both apps on every push
@@ -63,7 +70,7 @@ Next.js frontend  →  ASP.NET Core API  →  PostgreSQL
 **Backend:** ASP.NET Core, C#, Entity Framework Core, PostgreSQL, PdfPig (PDF text extraction), DocumentFormat.OpenXml (DOCX read/write), QuestPDF (PDF generation), Markdig (Markdown parsing)
 **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS, react-markdown
 **Auth:** JWT with BCrypt hashing, strong-password policy, per-IP rate limiting
-**Cloud:** AWS S3 (CV storage), OpenAI API (all AI features)
+**Cloud:** AWS S3 (CV storage), OpenAI API (all AI features), Adzuna API (job search)
 **Deployment:** Vercel (frontend), Render (backend + PostgreSQL, Docker-based)
 **Testing / DevOps:** xUnit + Moq + EF Core InMemory, Docker (local Postgres), GitHub Actions CI
 
@@ -83,6 +90,7 @@ Next.js frontend  →  ASP.NET Core API  →  PostgreSQL
 - [x] Paste-a-job-posting auto-fill
 - [x] Auth hardening (password policy, rate limiting, anti-enumeration)
 - [x] Backend test suite in CI
+- [x] Job search by title/location/radius (Adzuna API), with saved search persisted in PostgreSQL
 
 ## Getting Started
 
@@ -90,7 +98,7 @@ Next.js frontend  →  ASP.NET Core API  →  PostgreSQL
 - .NET 10 SDK
 - Docker (for local PostgreSQL)
 - Node.js 20+ (for the frontend)
-- An AWS account (S3 bucket + IAM user scoped to it) and an OpenAI API key, if you want CV upload/analysis to work locally
+- An AWS account (S3 bucket + IAM user scoped to it), an OpenAI API key, and a free Adzuna developer account (app ID + key), if you want CV upload/analysis and job search to work locally
 
 ### Backend setup
 ```bash
@@ -103,6 +111,8 @@ dotnet user-secrets set "Aws:SecretAccessKey" "..."
 dotnet user-secrets set "Aws:BucketName" "..."
 dotnet user-secrets set "Aws:Region" "..."
 dotnet user-secrets set "OpenAI:ApiKey" "..."
+dotnet user-secrets set "Adzuna:AppId" "..."
+dotnet user-secrets set "Adzuna:AppKey" "..."
 dotnet run --launch-profile http
 ```
 

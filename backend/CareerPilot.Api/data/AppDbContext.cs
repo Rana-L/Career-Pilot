@@ -13,4 +13,12 @@ public class AppDbContext : DbContext
     public DbSet<JobApplication> JobApplications { get; set; } = null!;
     public DbSet<Cv> Cvs { get; set; } = null!;
     public DbSet<CvAnalysis> CvAnalyses { get; set; } = null!;
+    public DbSet<SavedJobSearch> SavedJobSearches { get; set; } = null!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SavedJobSearch>()
+            .HasIndex(s => s.UserId)
+            .IsUnique();
+    }
 }

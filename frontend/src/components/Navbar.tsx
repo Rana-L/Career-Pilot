@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/applications", label: "Applications" },
   { href: "/cv", label: "CVs" },
+  { href: "/job-search", label: "Job Search" },
 ];
 
 export default function Navbar() {

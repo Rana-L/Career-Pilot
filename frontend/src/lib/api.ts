@@ -330,3 +330,57 @@ export async function downloadDocument(
   link.remove();
   URL.revokeObjectURL(url);
 }
+
+export interface JobSearchResult {
+  title: string;
+  companyName: string;
+  location: string;
+  description: string;
+  url: string;
+  created: string;
+}
+
+export async function searchJobs(
+  token: string,
+  title: string,
+  location: string,
+  radiusMiles: number,
+): Promise<JobSearchResult[]> {
+  const params = new URLSearchParams({
+    title,
+    location,
+    radiusMiles: String(radiusMiles),
+  });
+  const res = await authFetch(`/api/job-search?${params.toString()}`, token);
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to search for jobs");
+  }
+  return res.json();
+}
+
+export interface SavedJobSearch {
+  title: string;
+  location: string;
+  radiusMiles: number;
+}
+
+export async function getSavedJobSearch(
+  token: string,
+): Promise<SavedJobSearch | null> {
+  const res = await authFetch("/api/job-search/saved", token);
+  if (res.status === 204) return null;
+  if (!res.ok) throw new Error("Failed to load saved search");
+  return res.json();
+}
+
+export async function saveJobSearch(
+  token: string,
+  search: SavedJobSearch,
+): Promise<void> {
+  const res = await authFetch("/api/job-search/saved", token, {
+    method: "PUT",
+    body: JSON.stringify(search),
+  });
+  if (!res.ok) throw new Error("Failed to save search");
+}

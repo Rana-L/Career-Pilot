@@ -1,9 +1,14 @@
 using System.Text;
 using System.Text.Json;
+using CareerPilot.Api.data;
 using CareerPilot.Api.dto;
+using CareerPilot.Api.models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace CareerPilot.Api.Controllers;
 
@@ -15,11 +20,18 @@ public class JobSearchController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly AppDbContext _context;
 
-    public JobSearchController(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+    public JobSearchController(IHttpClientFactory httpClientFactory, IConfiguration configuration, AppDbContext context)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _context = context;
+    }
+
+    private int GetUserId()
+    {
+        return int.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Sub)!);
     }
 
     [HttpGet]
@@ -77,5 +89,50 @@ public class JobSearchController : ControllerBase
         }).ToList();
 
         return Ok(results);
+    }
+
+    [HttpGet("saved")]
+    public async Task<ActionResult<SavedJobSearchResponse>> GetSaved()
+    {
+        var userId = GetUserId();
+
+        var saved = await _context.SavedJobSearches
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        if (saved is null)
+        {
+            return NoContent();
+        }
+
+        return Ok(new SavedJobSearchResponse
+        {
+            Title = saved.Title,
+            Location = saved.Location,
+            RadiusMiles = saved.RadiusMiles,
+        });
+    }
+
+    [HttpPut("saved")]
+    public async Task<IActionResult> SaveSearch(SavedJobSearchRequest request)
+    {
+        var userId = GetUserId();
+
+        var saved = await _context.SavedJobSearches
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        if (saved is null)
+        {
+            saved = new SavedJobSearch { UserId = userId };
+            _context.SavedJobSearches.Add(saved);
+        }
+
+        saved.Title = request.Title;
+        saved.Location = request.Location;
+        saved.RadiusMiles = request.RadiusMiles;
+        saved.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return NoContent();
     }
 }
