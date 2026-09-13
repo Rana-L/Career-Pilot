@@ -250,11 +250,16 @@ export default function JobSearchPage() {
                     {job.companyName} — {job.location}
                   </p>
                 </div>
-                <p
-                  className="text-xs text-zinc-400 dark:text-zinc-500"
-                  title={new Date(job.created).toLocaleString()}
-                >
-                  {formatRelativeTime(job.created, now)}
+                <p className="text-right text-xs text-zinc-400 dark:text-zinc-500">
+                  <span>{formatRelativeTime(job.created, now)}</span>
+                  <br />
+                  <span>
+                    {new Date(job.created).toLocaleDateString(undefined, {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
                 </p>
               </div>
 
