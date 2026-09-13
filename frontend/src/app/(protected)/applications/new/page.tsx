@@ -85,13 +85,13 @@ export default function NewApplicationPage() {
 
         <div className="flex flex-col gap-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950">
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Paste a job posting to auto-fill
+            Paste a job posting or a URL to auto-fill
           </p>
           <textarea
             value={pastedPosting}
             onChange={(e) => setPastedPosting(e.target.value)}
             rows={4}
-            placeholder="Copy the job posting text from LinkedIn, Indeed, a careers page, etc. and paste it here."
+            placeholder="Paste the job posting text, or a link to the listing (works best for company career pages — LinkedIn/Indeed often block automatic fetching, so paste the text for those)."
             className={inputClasses}
           />
           <button
