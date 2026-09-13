@@ -17,6 +17,30 @@ function applicationKey(companyName: string, jobTitle: string): string {
   return `${companyName.trim().toLowerCase()}::${jobTitle.trim().toLowerCase()}`;
 }
 
+function formatRelativeTime(dateString: string, now: Date): string {
+  const posted = new Date(dateString);
+  const seconds = Math.floor((now.getTime() - posted.getTime()) / 1000);
+
+  if (seconds < 60) return "Posted just now";
+
+  const units: [string, number][] = [
+    ["year", 31536000],
+    ["month", 2592000],
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+
+  for (const [unit, secondsInUnit] of units) {
+    const value = Math.floor(seconds / secondsInUnit);
+    if (value >= 1) {
+      return `Posted ${value} ${unit}${value === 1 ? "" : "s"} ago`;
+    }
+  }
+
+  return "Posted just now";
+}
+
 export default function JobSearchPage() {
   const { token } = useAuth();
   const [title, setTitle] = useState("");
@@ -27,6 +51,13 @@ export default function JobSearchPage() {
   const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+
+  // Keep "posted X ago" labels advancing live without needing a page refresh.
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
   const [addedKeys, setAddedKeys] = useState<Set<string>>(new Set());
@@ -219,8 +250,11 @@ export default function JobSearchPage() {
                     {job.companyName} — {job.location}
                   </p>
                 </div>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  Posted {new Date(job.created).toLocaleDateString()}
+                <p
+                  className="text-xs text-zinc-400 dark:text-zinc-500"
+                  title={new Date(job.created).toLocaleString()}
+                >
+                  {formatRelativeTime(job.created, now)}
                 </p>
               </div>
 
